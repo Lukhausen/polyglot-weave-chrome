@@ -1,15 +1,15 @@
 {
   "manifest_version": 3,
-  "name": "Word Highlighter",
+  "name": "Polyglot Weave",
   "version": "1.0",
-  "description": "Highlights words on a webpage based on a user-defined list.",
+  "description": "Process webpage text based on language learning preferences",
   "permissions": [
     "storage",
     "activeTab",
     "scripting"
   ],
   "action": {
-    "default_popup": "popup.html",
+    "default_popup": "src/ui/popup.html",
     "default_icon": {
       "16": "images/icon16.png",
       "48": "images/icon48.png",
@@ -22,16 +22,16 @@
     "128": "images/icon128.png"
   },
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "src/background/background.js"
   },
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
       "js": [
-        "text_processor.js",
-        "module.js",
-        "storage.js",
-        "content.js"
+        "src/core/storage.js",
+        "src/core/text_processor.js",
+        "src/content/dom_utils.js",
+        "src/content/content.js"
       ]
     }
   ]
