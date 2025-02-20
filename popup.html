@@ -1,23 +1,36 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Word Highlighter</title>
+    <title>Settings</title>
     <style>
         body {
-            width: 250px;
+            width: 300px;
             padding: 10px;
         }
-        textarea {
+        input[type="text"], select, input[type="range"] {
             width: 100%;
-            height: 100px;
             margin-bottom: 10px;
+            box-sizing: border-box;
         }
     </style>
 </head>
 <body>
-    <h2>Enter words to highlight:</h2>
-    <textarea id="wordList" placeholder="Enter words separated by commas or new lines"></textarea>
-    <button id="saveWords">Save Words</button>
+    <h2>API Key:</h2>
+    <input type="text" id="apiKey" placeholder="Enter your API Key">
+
+    <h2>Language:</h2>
+    <input type="text" id="languageSetting" placeholder="Enter language (e.g., English, Spanish)">
+
+    <h2>Language Level:</h2>
+    <select id="languageLevel">
+        <option value="beginner">Beginner</option>
+        <option value="intermediate">Intermediate</option>
+        <option value="advanced">Advanced</option>
+    </select>
+
+    <h2>Slider Value (0-100):</h2>
+    <input type="range" id="sliderValue" min="0" max="100" value="50">
+
     <script src="storage.js"></script>
     <script src="popup.js"></script>
 </body>
