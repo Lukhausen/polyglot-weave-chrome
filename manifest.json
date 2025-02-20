@@ -27,12 +27,18 @@
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
+      "css": ["src/styles/content.css"],
       "js": [
         "src/core/storage.js",
         "src/core/text_processor.js",
+        "src/core/post_processor.js",
         "src/content/dom_utils.js",
         "src/content/content.js"
       ]
     }
-  ]
+  ],
+  "web_accessible_resources": [{
+    "resources": ["src/core/*.js", "src/ui/*.js"],
+    "matches": ["<all_urls>"]
+  }]
 } 

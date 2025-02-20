@@ -1,0 +1,36 @@
+.polyglow-weave-highlight {
+  display: inline;
+  transition: background-color 0.3s ease;
+  background-color: rgba(255, 255, 0, 0.718);
+  position: relative;
+  cursor: help;
+}
+
+.polyglow-weave-highlight:hover {
+  background-color: rgba(255, 255, 0, 0.2);
+}
+
+/* Custom tooltip styling (optional - the title attribute will work without this) */
+.polyglow-weave-highlight::after {
+  content: attr(title);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 4px 8px;
+  background-color: rgba(0, 0, 0, 0.8);
+  color: white;
+  border-radius: 4px;
+  font-size: 14px;
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s, visibility 0.2s;
+  pointer-events: none;
+  z-index: 1000;
+}
+
+.polyglow-weave-highlight:hover::after {
+  opacity: 1;
+  visibility: visible;
+} 

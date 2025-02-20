@@ -6,6 +6,8 @@ window.TextProcessor = {
    */
   processText: async function(text) {
     const settings = await window.StorageManager.getSettings();
+    // Add 2 second delay
+    await new Promise(resolve => setTimeout(resolve, 2000));
     return this.applyProcessing(text, settings);
   },
 
@@ -16,14 +18,16 @@ window.TextProcessor = {
   applyProcessing: function(text, settings) {
     // In the future, this could use the API key, language, and level settings
     // to determine how to process the text
-    return this.capitalizeText(text);
+    return this.capitalizeAlternateWords(text);
   },
 
   /**
-   * Basic text transformation
+   * Capitalizes every second word in the text
    * @private
    */
-  capitalizeText: function(text) {
-    return text.toUpperCase();
+  capitalizeAlternateWords: function(text) {
+    return text.split(/\s+/).map((word, index) => {
+      return index % 2 === 1 ? word.toUpperCase() : word;
+    }).join(' ');
   }
 }; 

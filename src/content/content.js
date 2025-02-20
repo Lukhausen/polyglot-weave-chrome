@@ -10,34 +10,73 @@ const CONFIG = {
   ]
 };
 
+/**
+ * ⚠️ CRITICAL PERFORMANCE OPTIMIZATION - DO NOT REMOVE OR MODIFY ⚠️
+ * 
+ * This implementation uses a sophisticated lazy-loading mechanism to process text
+ * only when it becomes visible in the viewport. This is crucial for:
+ * 
+ * 1. Performance: Prevents unnecessary processing of off-screen content
+ * 2. Memory Usage: Reduces memory overhead by only storing processed text when needed
+ * 3. User Experience: Ensures smooth scrolling and page responsiveness
+ * 
+ * Key Components:
+ * - pendingProcessing WeakMap: Stores text nodes waiting for processing
+ * - Intersection Observer: Triggers processing only when content is visible
+ * - Placeholder Elements: Lightweight spans that track visibility
+ * 
+ * Removing or modifying this system will result in:
+ * - Increased CPU usage
+ * - Higher memory consumption
+ * - Potential page freezes on large documents
+ * - Poor user experience
+ * 
+ * If modifications are needed, ensure the visibility-based processing
+ * mechanism remains intact.
+ */
+
 // State tracking
 const state = {
   processedNodes: new WeakSet(),
-  processedElements: new WeakSet()
+  processedElements: new WeakSet(),
+  pendingProcessing: new WeakMap() // Store text nodes waiting to be processed
 };
 
 // Initialize intersection observer
 const intersectionObserver = new IntersectionObserver(entries => {
-  entries.forEach(entry => {
+  entries.forEach(async entry => {
     if (entry.isIntersecting) {
-      processVisibleElement(entry.target);
+      const textNode = state.pendingProcessing.get(entry.target);
+      if (textNode) {
+        await processVisibleText(textNode);
+        state.pendingProcessing.delete(entry.target);
+      }
       intersectionObserver.unobserve(entry.target);
     }
   });
 }, { threshold: 0.1 });
 
-// Process visible elements
-async function processVisibleElement(markElement) {
-  markElement.childNodes.forEach(async node => {
-    if (node.nodeType === Node.TEXT_NODE) {
-      try {
-        const processedText = await TextProcessor.processText(node.textContent);
-        node.textContent = processedText;
-      } catch (error) {
-        console.error("Error processing text:", error);
-      }
+// Process visible text
+async function processVisibleText(textNode) {
+  try {
+    const originalText = textNode.textContent;
+    const processedText = await TextProcessor.processText(originalText);
+    
+    // Only proceed if there are actual changes
+    if (originalText !== processedText) {
+      const nodes = PostProcessor.processTextDifferences(
+        originalText,
+        processedText
+      );
+      
+      // Replace the text node with the processed nodes
+      const fragment = document.createDocumentFragment();
+      nodes.forEach(n => fragment.appendChild(n));
+      textNode.parentNode.replaceChild(fragment, textNode);
     }
-  });
+  } catch (error) {
+    console.error("Error processing text:", error);
+  }
 }
 
 // Process elements
@@ -66,9 +105,16 @@ function processElement(element) {
   while (walker.nextNode()) {
     const textNode = walker.currentNode;
     if (!state.processedNodes.has(textNode)) {
-      const markElement = DOMUtils.wrapTextNode(textNode);
       state.processedNodes.add(textNode);
-      intersectionObserver.observe(markElement);
+      
+      // Create a placeholder element for intersection observation
+      const placeholder = document.createElement('span');
+      placeholder.style.display = 'inline';
+      textNode.parentNode.insertBefore(placeholder, textNode);
+      
+      // Store the text node for processing when visible
+      state.pendingProcessing.set(placeholder, textNode);
+      intersectionObserver.observe(placeholder);
     }
   }
   state.processedElements.add(element);

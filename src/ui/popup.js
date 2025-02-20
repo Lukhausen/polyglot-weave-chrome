@@ -1,46 +1,41 @@
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   const elements = {
     apiKey: document.getElementById('apiKey'),
-    language: document.getElementById('languageSetting'),
-    level: document.getElementById('languageLevel'),
-    slider: document.getElementById('sliderValue')
+    languageSetting: document.getElementById('languageSetting'),
+    languageLevel: document.getElementById('languageLevel'),
+    sliderValue: document.getElementById('sliderValue')
   };
 
-  // Load saved settings
-  loadSettings();
-
-  // Add auto-save listeners
-  Object.entries(elements).forEach(([key, element]) => {
-    const event = element.type === 'range' ? 'input' : 'change';
-    element.addEventListener(event, () => {
-      saveSetting(key, element.value);
-    });
-  });
+  function showSaveEffect(element) {
+    element.style.backgroundColor = '#e8f0fe';
+    setTimeout(() => element.style.backgroundColor = '', 300);
+  }
 
   async function loadSettings() {
     const settings = await StorageManager.getSettings();
+    
     Object.entries(elements).forEach(([key, element]) => {
-      if (settings[key]) {
+      if (!settings[key]) return;
+      
+      if (element.tagName === 'SELECT') {
+        const hasOption = Array.from(element.options).some(opt => opt.value === settings[key]);
+        element.value = hasOption ? settings[key] : element.options[0].value;
+      } else {
         element.value = settings[key];
       }
     });
   }
 
-  async function saveSetting(key, value) {
-    await StorageManager.updateSetting(key, value);
-    notifyContentScript(key);
-  }
+  // Add listeners and load settings
+  Object.entries(elements).forEach(([key, element]) => {
+    element.addEventListener(
+      element.type === 'range' ? 'input' : 'change',
+      async () => {
+        await StorageManager.updateSetting(key, element.value);
+        showSaveEffect(element);
+      }
+    );
+  });
 
-  async function notifyContentScript(updatedKey) {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (tab?.id) {
-      chrome.scripting.executeScript({
-        target: { tabId: tab.id },
-        function: (key) => {
-          console.log(`Setting ${key} updated`);
-        },
-        args: [updatedKey]
-      });
-    }
-  }
+  await loadSettings();
 }); 

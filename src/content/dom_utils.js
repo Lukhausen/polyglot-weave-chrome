@@ -13,10 +13,11 @@ window.DOMUtils = {
   },
 
   wrapTextNode(textNode) {
-    const markElement = document.createElement('mark');
-    markElement.style.display = 'inline';
-    textNode.parentNode.replaceChild(markElement, textNode);
-    markElement.appendChild(textNode);
-    return markElement;
+    const spanElement = document.createElement('span');
+    spanElement.className = 'polyglow-weave-highlight';
+    spanElement.style.display = 'inline';
+    textNode.parentNode.replaceChild(spanElement, textNode);
+    spanElement.appendChild(textNode);
+    return spanElement;
   }
 }; 
