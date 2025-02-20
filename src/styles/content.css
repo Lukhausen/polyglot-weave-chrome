@@ -1,7 +1,7 @@
 .polyglow-weave-highlight {
   display: inline;
   transition: background-color 0.3s ease;
-  background-color: rgba(255, 255, 0, 0.718);
+  filter: drop-shadow(0 0 4px rgba(255, 255, 0, 0.7));
   position: relative;
   cursor: help;
 }
