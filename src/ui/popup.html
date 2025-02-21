@@ -19,6 +19,26 @@
       padding: 5px;
       margin-bottom: 10px;
     }
+    .token-stats {
+      margin-top: 20px;
+      padding: 10px;
+      background: #f5f5f5;
+      border-radius: 5px;
+    }
+    
+    .token-stat {
+      display: flex;
+      justify-content: space-between;
+      margin: 5px 0;
+    }
+    
+    .token-label {
+      color: #666;
+    }
+    
+    .token-value {
+      font-weight: bold;
+    }
   </style>
 </head>
 <body>
@@ -50,6 +70,26 @@
   <div class="setting-group">
     <label for="sliderValue">Processing Intensity:</label>
     <input type="range" id="sliderValue" min="0" max="100" value="50">
+  </div>
+
+  <div class="token-stats">
+    <h3>Token Usage Statistics</h3>
+    <div class="token-stat">
+      <span class="token-label">Prompt Tokens:</span>
+      <span class="token-value" id="promptTokens">0</span>
+    </div>
+    <div class="token-stat">
+      <span class="token-label">Completion Tokens:</span>
+      <span class="token-value" id="completionTokens">0</span>
+    </div>
+    <div class="token-stat">
+      <span class="token-label">Total Tokens:</span>
+      <span class="token-value" id="totalTokens">0</span>
+    </div>
+    <div class="token-stat">
+      <span class="token-label">Last Updated:</span>
+      <span class="token-value" id="lastUpdated">Never</span>
+    </div>
   </div>
 
   <script src="../core/storage.js"></script>

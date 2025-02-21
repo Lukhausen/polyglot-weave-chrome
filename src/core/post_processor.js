@@ -5,34 +5,47 @@ window.PostProcessor = {
    * @param {string} modifiedText - The text after TextProcessor modifications
    * @returns {Node[]} Array of text and span nodes
    */
-  processTextDifferences: function(originalText, modifiedText) {
-    const originalWords = originalText.split(/(\s+)/);
-    const modifiedWords = modifiedText.split(/(\s+)/);
+  processTextDifferences: function(originalText, modifiedText, replacements) {
     const nodes = [];
-    
-    let i = 0;
-    while (i < originalWords.length && i < modifiedWords.length) {
-      if (originalWords[i] !== modifiedWords[i]) {
-        // Create span for modified word
+    let currentIndex = 0;
+
+    // Sort replacements by their position in the text (to handle overlapping replacements)
+    const sortedReplacements = replacements.sort((a, b) => {
+      const indexA = modifiedText.indexOf(a.replacement);
+      const indexB = modifiedText.indexOf(b.replacement);
+      return indexA - indexB;
+    });
+
+    // Process each replacement
+    sortedReplacements.forEach(({ original, replacement }) => {
+      const replacementIndex = modifiedText.indexOf(replacement, currentIndex);
+      
+      if (replacementIndex > currentIndex) {
+        // Add text before the replacement
+        nodes.push(document.createTextNode(
+          modifiedText.substring(currentIndex, replacementIndex)
+        ));
+      }
+
+      if (replacementIndex !== -1) {
+        // Create highlighted span for the replacement
         const span = document.createElement('span');
         span.className = 'polyglow-weave-highlight';
-        span.textContent = modifiedWords[i];
-        // Add original word as title for tooltip
-        span.title = `Original: ${originalWords[i]}`;
+        span.textContent = replacement;
+        span.title = `Original: ${original}`;
         nodes.push(span);
-      } else {
-        // Keep original word/whitespace as text node
-        nodes.push(document.createTextNode(originalWords[i]));
+        
+        currentIndex = replacementIndex + replacement.length;
       }
-      i++;
+    });
+
+    // Add any remaining text after the last replacement
+    if (currentIndex < modifiedText.length) {
+      nodes.push(document.createTextNode(
+        modifiedText.substring(currentIndex)
+      ));
     }
-    
-    // Add any remaining words
-    while (i < originalWords.length) {
-      nodes.push(document.createTextNode(originalWords[i]));
-      i++;
-    }
-    
+
     return nodes;
   },
 

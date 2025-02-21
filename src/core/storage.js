@@ -4,7 +4,13 @@ window.StorageManager = {
       apiKey: '',
       languageSetting: '',
       languageLevel: 'beginner',
-      sliderValue: '50'
+      sliderValue: '50',
+      tokenStats: {
+        promptTokens: 0,
+        completionTokens: 0,
+        totalTokens: 0,
+        lastUpdated: Date.now()
+      }
     };
     
     return new Promise(resolve => {
@@ -21,5 +27,15 @@ window.StorageManager = {
     settings[key] = value;
     await this.setSettings(settings);
     return settings;
+  },
+
+  async updateTokenStats(newStats) {
+    const settings = await this.getSettings();
+    settings.tokenStats = {
+      ...newStats,
+      lastUpdated: Date.now()
+    };
+    await this.setSettings(settings);
+    return settings.tokenStats;
   }
 }; 

@@ -60,13 +60,14 @@ const intersectionObserver = new IntersectionObserver(entries => {
 async function processVisibleText(textNode) {
   try {
     const originalText = textNode.textContent;
-    const processedText = await TextProcessor.processText(originalText);
+    const result = await TextProcessor.processText(originalText);
     
     // Only proceed if there are actual changes
-    if (originalText !== processedText) {
+    if (result.text !== originalText) {
       const nodes = PostProcessor.processTextDifferences(
         originalText,
-        processedText
+        result.text,
+        result.replacements
       );
       
       // Replace the text node with the processed nodes
