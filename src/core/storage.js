@@ -5,6 +5,7 @@ window.StorageManager = {
       languageSetting: '',
       languageLevel: 'beginner',
       sliderValue: '50',
+      enabled: true,
       tokenStats: {
         promptTokens: 0,
         completionTokens: 0,

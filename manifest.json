@@ -39,6 +39,7 @@
   ],
   "web_accessible_resources": [{
     "resources": ["src/core/*.js", "src/ui/*.js"],
-    "matches": ["<all_urls>"]
+    "matches": ["<all_urls>"],
+    "css": ["styles/tooltip.css"]
   }]
 } 

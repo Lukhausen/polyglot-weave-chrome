@@ -7,7 +7,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     promptTokens: document.getElementById('promptTokens'),
     completionTokens: document.getElementById('completionTokens'),
     totalTokens: document.getElementById('totalTokens'),
-    estimatedCost: document.getElementById('estimatedCost')
+    estimatedCost: document.getElementById('estimatedCost'),
+    enableToggle: document.getElementById('enableToggle'),
+    statusText: document.getElementById('statusText')
   };
 
   // Pricing for GPT-4o mini (per 1M tokens)
@@ -70,13 +72,29 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     // Update settings inputs
     Object.entries(elements).forEach(([key, element]) => {
-      if (!settings[key]) return;
+      if (!settings[key] && settings[key] !== false) {
+        // Special handling for the toggle switch - map "enableToggle" to "enabled" property
+        if (key === 'enableToggle' && element && element.type === 'checkbox') {
+          element.checked = settings.enabled !== false; // Default to true if not set
+          if (elements.statusText) {
+            elements.statusText.textContent = settings.enabled !== false ? 'Enabled' : 'Disabled';
+          }
+          return;
+        }
+        return;
+      }
       
       if (element.tagName === 'SELECT') {
         const hasOption = Array.from(element.options).some(opt => opt.value === settings[key]);
         element.value = hasOption ? settings[key] : element.options[0].value;
-      } else if (['promptTokens', 'completionTokens', 'totalTokens', 'estimatedCost'].includes(key)) {
-        // Skip token display elements
+      } else if (element.type === 'checkbox') {
+        element.checked = settings[key];
+        // Update the status text
+        if (key === 'enableToggle' && elements.statusText) {
+          elements.statusText.textContent = settings.enabled ? 'Enabled' : 'Disabled';
+        }
+      } else if (['promptTokens', 'completionTokens', 'totalTokens', 'estimatedCost', 'statusText'].includes(key)) {
+        // Skip token display elements and status text
         return;
       } else {
         element.value = settings[key];
@@ -89,16 +107,41 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Add listeners and load settings
   Object.entries(elements).forEach(([key, element]) => {
-    if (['promptTokens', 'completionTokens', 'totalTokens', 'estimatedCost'].includes(key)) {
-      return; // Skip token display elements
+    if (['promptTokens', 'completionTokens', 'totalTokens', 'estimatedCost', 'statusText'].includes(key)) {
+      return; // Skip token display elements and status text
     }
-    element.addEventListener(
-      element.type === 'range' ? 'input' : 'change',
-      async () => {
-        await StorageManager.updateSetting(key, element.value);
-        showSaveEffect(element);
-      }
-    );
+    
+    if (element.type === 'checkbox') {
+      element.addEventListener('change', async () => {
+        // For the toggle switch, use the special property 'enabled'
+        if (key === 'enableToggle') {
+          await StorageManager.updateSetting('enabled', element.checked);
+          // Update status text
+          elements.statusText.textContent = element.checked ? 'Enabled' : 'Disabled';
+          
+          // Send message to all tabs to update state
+          const tabs = await chrome.tabs.query({});
+          tabs.forEach(tab => {
+            chrome.tabs.sendMessage(tab.id, { 
+              action: 'toggleExtension', 
+              enabled: element.checked 
+            }).catch(() => {
+              // Suppress errors for tabs that can't receive messages
+            });
+          });
+        }
+        
+        showSaveEffect(element.parentNode);
+      });
+    } else {
+      element.addEventListener(
+        element.type === 'range' ? 'input' : 'change',
+        async () => {
+          await StorageManager.updateSetting(key, element.value);
+          showSaveEffect(element);
+        }
+      );
+    }
   });
 
   await loadSettings();

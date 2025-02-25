@@ -1,35 +1,32 @@
+/* Base highlight style */
 .polyglow-weave-highlight {
-  display: inline;
-  transition: background-color 0.3s ease;
-  filter: drop-shadow(0 0 4px rgba(255, 255, 0, 0.7));
-  position: relative;
-  cursor: help;
+  display: inline !important;
+  transition: background-color 0.3s ease !important;
+  filter: drop-shadow(0 0 4px rgba(255, 255, 0, 0.7)) !important;
+  position: relative !important;
+  cursor: help !important;
+  z-index: 9999 !important;
 }
 
-
-/* Custom tooltip styling (optional - the title attribute will work without this) */
-.polyglow-weave-highlight::after {
-  content: attr(title);
-  position: absolute;
-  bottom: 100%;
-  left: 50%;
-  transform: translateX(-50%);
-  padding: 4px 8px;
-  background-color: rgba(0, 0, 0, 0.8);
-  color: white;
-  border-radius: 4px;
-  font-size: 14px;
-  white-space: nowrap;
-  opacity: 0;
+/* Only retain fallback tooltip style for environments without JavaScript */
+#polyglow-tooltip {
+  position: fixed !important;
+  transform: translateX(-50%) translateY(-100%) !important;
+  padding: 8px 12px !important;
+  background-color: #000 !important;
+  color: #fff !important;
+  border-radius: 4px !important;
+  font-size: 14px !important;
+  white-space: nowrap !important;
+  pointer-events: none !important;
+  transition: opacity 0.2s, visibility 0.2s !important;
+  z-index: 2147483647 !important; /* Maximum z-index */
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.8) !important;
+  border: 2px solid yellow !important;
+  font-family: Arial, sans-serif !important;
+  line-height: 1.4 !important;
   visibility: hidden;
-  transition: opacity 0.2s, visibility 0.2s;
-  pointer-events: none;
-  z-index: 1000000 !important;
-  filter: drop-shadow(0 0 1px rgba(91, 91, 85, 0));
-
+  opacity: 0;
 }
 
-.polyglow-weave-highlight:hover::after {
-  opacity: 1;
-  visibility: visible;
-} 
+/* Remove all the other tooltip-related styles that are no longer needed */ 

@@ -55,7 +55,8 @@ const DEBUG = {
 const state = {
   processedNodes: new WeakSet(),
   processedElements: new WeakSet(),
-  pendingProcessing: new WeakMap() // Store text nodes waiting to be processed
+  pendingProcessing: new WeakMap(), // Store text nodes waiting to be processed
+  enabled: true // Default to enabled until we get settings
 };
 
 // Modify the intersection observer to include more logging
@@ -81,10 +82,22 @@ const intersectionObserver = new IntersectionObserver(entries => {
 
 // Process visible text
 async function processVisibleText(textNode) {
+  // Skip processing if extension is disabled
+  if (!state.enabled) {
+    DEBUG.log('processing', 'Extension disabled, skipping text processing');
+    return;
+  }
+  
   try {
     // Check if the node is still in the document
     if (!textNode.isConnected || !textNode.parentNode) {
       console.log('Skipping disconnected node');
+      return;
+    }
+    
+    // Add a check to ensure TextProcessor is available
+    if (!window.TextProcessor || typeof window.TextProcessor.processText !== 'function') {
+      console.error('TextProcessor is not properly initialized');
       return;
     }
     
@@ -93,6 +106,12 @@ async function processVisibleText(textNode) {
     
     // Only proceed if there are actual changes and the node is still connected
     if (result.text !== originalText && textNode.isConnected && textNode.parentNode) {
+      // Add a check for PostProcessor as well
+      if (!window.PostProcessor || typeof window.PostProcessor.processTextDifferences !== 'function') {
+        console.error('PostProcessor is not properly initialized');
+        return;
+      }
+      
       const nodes = PostProcessor.processTextDifferences(
         originalText,
         result.text,
@@ -120,12 +139,18 @@ async function processVisibleText(textNode) {
       }
     }
   } catch (error) {
-    console.error("Error processing text:", error);
+    console.error("Error processing text:", error, error.stack);
   }
 }
 
 // Modify processElement to include more logging
 function processElement(element) {
+  // Skip processing if extension is disabled
+  if (!state.enabled) {
+    DEBUG.log('processing', 'Extension disabled, skipping processing');
+    return;
+  }
+  
   DEBUG.log('processing', `Checking element: ${element.nodeName}#${element.id || 'no-id'}.${element.className || 'no-class'}`);
   
   if (state.processedElements.has(element)) {
@@ -300,99 +325,121 @@ function runContentScan() {
   DEBUG.log('visibility', `Content scan found ${newlyFoundElements} new elements`);
 }
 
+// Add this function to initialize the enabled state
+async function initializeEnabledState() {
+  try {
+    const settings = await StorageManager.getSettings();
+    state.enabled = settings.enabled !== false; // Default to true if not set
+    DEBUG.log('initialization', `Extension enabled state: ${state.enabled}`);
+  } catch (error) {
+    console.error('Error loading enabled state:', error);
+    // Default to enabled if there's an error
+    state.enabled = true;
+  }
+}
+
 // Modify initialize function
 function initialize() {
-  DEBUG.log('initialization', 'Starting initialization');
-  
-  const allElements = [];
-  CONFIG.targetElements.forEach(selector => {
-    const elements = document.querySelectorAll(selector);
-    DEBUG.log('initialization', `Found ${elements.length} elements matching selector: ${selector}`);
-    allElements.push(...elements);
-  });
-  
-  DEBUG.log('initialization', `Total elements to process: ${allElements.length}`);
-  
-  // Process visible elements
-  let visibleCount = 0;
-  allElements.forEach(element => {
-    if (!state.processedElements.has(element) && DOMUtils.isVisible(element)) {
-      visibleCount++;
-      processElement(element);
-    } else if (state.processedElements.has(element)) {
-      DEBUG.log('initialization', `Element already processed, skipping`);
-    } else if (!DOMUtils.isVisible(element)) {
-      DEBUG.log('visibility', `Element not visible: ${element.nodeName}#${element.id || 'no-id'}`);
+  // Get enabled state first
+  initializeEnabledState().then(() => {
+    // Only continue if extension is enabled
+    if (!state.enabled) {
+      DEBUG.log('initialization', 'Extension disabled, skipping initialization');
+      return;
     }
-  });
-  
-  DEBUG.log('initialization', `Processed ${visibleCount} visible elements`);
-
-  // Modify the DOM mutation observer to process child elements as well
-  const domObserver = new MutationObserver(mutations => {
-    DEBUG.log('initialization', `DOM mutation detected: ${mutations.length} mutations`);
-    let newElements = 0;
-    let newChildElements = 0;
     
-    mutations.forEach(mutation => {
-      mutation.addedNodes.forEach(node => {
-        if (node.nodeType === Node.ELEMENT_NODE) {
-          // Direct match
-          if (CONFIG.targetElements.includes(node.nodeName.toLowerCase())) {
-            newElements++;
-            DEBUG.log('initialization', `New element added: ${node.nodeName}`);
-            processElement(node);
-          }
-          
-          // Process child elements that match our target elements
-          CONFIG.targetElements.forEach(selector => {
-            const childElements = node.querySelectorAll(selector);
-            if (childElements.length > 0) {
-              DEBUG.log('initialization', `Found ${childElements.length} child ${selector} elements in added node`);
-              newChildElements += childElements.length;
-              childElements.forEach(element => {
-                if (!state.processedElements.has(element)) {
-                  processElement(element);
-                }
-              });
-            }
-          });
-        }
-      });
-    });
+    DEBUG.log('initialization', 'Starting initialization');
     
-    DEBUG.log('initialization', `Processed ${newElements} direct new elements and ${newChildElements} child elements from mutations`);
-  });
-
-  domObserver.observe(document.body, {
-    childList: true,
-    subtree: true
-  });
-  
-  // Add a scroll observer to detect when content becomes visible through scrolling
-  window.addEventListener('scroll', debounce(() => {
-    DEBUG.log('visibility', 'Scroll event detected, checking for new visible elements');
-    
-    // Find elements that match our targets and haven't been processed yet
-    let newlyVisibleElements = 0;
-    
+    const allElements = [];
     CONFIG.targetElements.forEach(selector => {
-      document.querySelectorAll(selector).forEach(element => {
-        if (!state.processedElements.has(element) && DOMUtils.isVisible(element)) {
-          newlyVisibleElements++;
-          DEBUG.log('visibility', `Found newly visible element on scroll: ${element.nodeName}`);
-          processElement(element);
-        }
-      });
+      const elements = document.querySelectorAll(selector);
+      DEBUG.log('initialization', `Found ${elements.length} elements matching selector: ${selector}`);
+      allElements.push(...elements);
     });
     
-    DEBUG.log('visibility', `Processed ${newlyVisibleElements} newly visible elements after scrolling`);
-  }, 200));
-  
-  // Set up the periodic scanner for lazy-loaded content
-  setupPeriodicScanner();
-  
-  DEBUG.log('initialization', 'Initialization complete with enhanced lazy-loading detection');
+    DEBUG.log('initialization', `Total elements to process: ${allElements.length}`);
+    
+    // Process visible elements
+    let visibleCount = 0;
+    allElements.forEach(element => {
+      if (!state.processedElements.has(element) && DOMUtils.isVisible(element)) {
+        visibleCount++;
+        processElement(element);
+      } else if (state.processedElements.has(element)) {
+        DEBUG.log('initialization', `Element already processed, skipping`);
+      } else if (!DOMUtils.isVisible(element)) {
+        DEBUG.log('visibility', `Element not visible: ${element.nodeName}#${element.id || 'no-id'}`);
+      }
+    });
+    
+    DEBUG.log('initialization', `Processed ${visibleCount} visible elements`);
+
+    // Modify the DOM mutation observer to process child elements as well
+    const domObserver = new MutationObserver(mutations => {
+      DEBUG.log('initialization', `DOM mutation detected: ${mutations.length} mutations`);
+      let newElements = 0;
+      let newChildElements = 0;
+      
+      mutations.forEach(mutation => {
+        mutation.addedNodes.forEach(node => {
+          if (node.nodeType === Node.ELEMENT_NODE) {
+            // Direct match
+            if (CONFIG.targetElements.includes(node.nodeName.toLowerCase())) {
+              newElements++;
+              DEBUG.log('initialization', `New element added: ${node.nodeName}`);
+              processElement(node);
+            }
+            
+            // Process child elements that match our target elements
+            CONFIG.targetElements.forEach(selector => {
+              const childElements = node.querySelectorAll(selector);
+              if (childElements.length > 0) {
+                DEBUG.log('initialization', `Found ${childElements.length} child ${selector} elements in added node`);
+                newChildElements += childElements.length;
+                childElements.forEach(element => {
+                  if (!state.processedElements.has(element)) {
+                    processElement(element);
+                  }
+                });
+              }
+            });
+          }
+        });
+      });
+      
+      DEBUG.log('initialization', `Processed ${newElements} direct new elements and ${newChildElements} child elements from mutations`);
+    });
+
+    domObserver.observe(document.body, {
+      childList: true,
+      subtree: true
+    });
+    
+    // Add a scroll observer to detect when content becomes visible through scrolling
+    window.addEventListener('scroll', debounce(() => {
+      DEBUG.log('visibility', 'Scroll event detected, checking for new visible elements');
+      
+      // Find elements that match our targets and haven't been processed yet
+      let newlyVisibleElements = 0;
+      
+      CONFIG.targetElements.forEach(selector => {
+        document.querySelectorAll(selector).forEach(element => {
+          if (!state.processedElements.has(element) && DOMUtils.isVisible(element)) {
+            newlyVisibleElements++;
+            DEBUG.log('visibility', `Found newly visible element on scroll: ${element.nodeName}`);
+            processElement(element);
+          }
+        });
+      });
+      
+      DEBUG.log('visibility', `Processed ${newlyVisibleElements} newly visible elements after scrolling`);
+    }, 200));
+    
+    // Set up the periodic scanner for lazy-loaded content
+    setupPeriodicScanner();
+    
+    DEBUG.log('initialization', 'Initialization complete with enhanced lazy-loading detection');
+  });
 }
 
 // Start processing
@@ -402,10 +449,17 @@ if (document.readyState === 'complete') {
   window.addEventListener('load', initialize); 
 }
 
-// At the end of the file, improve the message listener
+// Enhance message listener to handle toggle events
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === 'reprocessPage') {
     console.log('========== MANUALLY REPROCESSING PAGE ==========');
+    
+    // Only reprocess if enabled
+    if (!state.enabled) {
+      console.log('Extension is disabled, not reprocessing');
+      sendResponse({ status: 'Extension disabled' });
+      return true;
+    }
     
     // Count current state
     let pendingCount = 0;
@@ -433,6 +487,26 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     sendResponse({ status: 'Processing started' });
     return true; // Indicate async response
   }
+  
+  // Handle the toggle message
+  if (message.action === 'toggleExtension') {
+    console.log(`Extension ${message.enabled ? 'enabled' : 'disabled'}`);
+    state.enabled = message.enabled;
+    
+    // If enabled and not initialized yet, initialize
+    if (state.enabled && document.readyState === 'complete') {
+      // Clear previous processing state
+      state.processedNodes = new WeakSet();
+      state.processedElements = new WeakSet();
+      state.pendingProcessing = new WeakMap();
+      
+      // Start processing
+      initialize();
+    }
+    
+    sendResponse({ status: `Extension ${message.enabled ? 'enabled' : 'disabled'}` });
+    return true;
+  }
 });
 
 // Add a debounce utility function
@@ -446,4 +520,76 @@ function debounce(func, wait) {
       func.apply(context, args);
     }, wait);
   };
-} 
+}
+
+/**
+ * Tooltip System Implementation
+ * 
+ * This uses Shadow DOM to create tooltips that are guaranteed to be visible
+ * regardless of page styling constraints.
+ * 
+ * Previous Problems:
+ * 1. Tooltips were being hidden by parent elements with overflow:hidden
+ * 2. Z-index conflicts caused tooltips to appear behind other elements
+ * 3. Page CSS was affecting our tooltip styling
+ * 4. Containing blocks with positioning would trap tooltips inside
+ * 
+ * Shadow DOM Solution:
+ * - Creates an isolated DOM tree that's immune to page CSS
+ * - Uses fixed positioning and maximum z-index
+ * - Positions tooltip relative to viewport, not to parent elements
+ * - Cannot be affected by overflow properties
+ */
+function setupTooltipContainer() {
+  // Create a container that will host our shadow DOM
+  const tooltipHost = document.createElement('div');
+  tooltipHost.id = 'polyglot-tooltip-host';
+  
+  // Position it at the top layer - this ensures it's above everything
+  tooltipHost.style.position = 'fixed';
+  tooltipHost.style.top = '0';
+  tooltipHost.style.left = '0';
+  tooltipHost.style.width = '0';
+  tooltipHost.style.height = '0';
+  tooltipHost.style.zIndex = '2147483647'; // Maximum z-index value
+  tooltipHost.style.pointerEvents = 'none';
+  
+  // Attach to body instead of near the highlighted text
+  document.body.appendChild(tooltipHost);
+  
+  // Create shadow root - this isolates our styles from the page
+  const shadow = tooltipHost.attachShadow({ mode: 'open' });
+  
+  // Add styles from external CSS file
+  const linkElem = document.createElement('link');
+  linkElem.setAttribute('rel', 'stylesheet');
+  linkElem.setAttribute('href', chrome.runtime.getURL('styles/tooltip.css'));
+  shadow.appendChild(linkElem);
+  
+  // Add tooltip element to shadow DOM
+  const tooltip = document.createElement('div');
+  tooltip.className = 'tooltip';
+  tooltip.id = 'polyglot-tooltip';
+  tooltip.textContent = '';
+  
+  shadow.appendChild(tooltip);
+  
+  // Expose methods to the global scope for use by other components
+  window.PolyglotTooltip = {
+    show: function(text, x, y) {
+      tooltip.textContent = text;
+      tooltip.style.left = `${x}px`;
+      tooltip.style.top = `${y}px`;
+      tooltip.style.transform = 'translate(-50%, -100%)';
+      tooltip.style.opacity = '1';
+    },
+    hide: function() {
+      tooltip.style.opacity = '0';
+    }
+  };
+  
+  console.log('Polyglot tooltip container initialized with Shadow DOM');
+}
+
+// Call this function at initialization
+window.addEventListener('DOMContentLoaded', setupTooltipContainer); 
