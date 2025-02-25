@@ -1,5 +1,19 @@
+/**
+ * TextProcessor
+ * Handles text transformation using the OpenAI API
+ */
 window.TextProcessor = {
-  // Track total token usage
+  // API model configuration
+  API_CONFIG: {
+    model: "gpt-4o-mini",
+    temperature: 1,
+    max_completion_tokens: 2048,
+    top_p: 1,
+    frequency_penalty: 0,
+    presence_penalty: 0
+  },
+  
+  // Token usage tracking
   tokenStats: {
     promptTokens: 0,
     completionTokens: 0,
@@ -10,10 +24,15 @@ window.TextProcessor = {
    * Gets current token usage statistics
    * @returns {Object} Token usage stats
    */
-  getTokenStats: function() {
+  getTokenStats() {
     return { ...this.tokenStats };
   },
 
+  /**
+   * Updates token statistics and sends update to background
+   * @param {Object} usage - Token usage from API
+   * @returns {Promise<Object>} Updated stats
+   */
   async updateTokenStats(usage) {
     const settings = await window.StorageManager.getSettings();
     const currentStats = settings.tokenStats;
@@ -25,29 +44,39 @@ window.TextProcessor = {
     };
     
     await window.StorageManager.updateTokenStats(newStats);
+    
+    // Notify background script about updated token stats
+    this.sendTokenStatsUpdate(newStats);
+    
+    return newStats;
+  },
+  
+  /**
+   * Sends token stats update to background script
+   * @param {Object} stats - Updated token stats
+   */
+  sendTokenStatsUpdate(stats) {
     try {
       chrome.runtime.sendMessage({
         type: 'tokenStatsUpdated',
-        stats: newStats
+        stats: stats
       }, response => {
-        // Optional callback to check if message was received
         if (chrome.runtime.lastError) {
-          // Suppress the error - receiver might not be available
+          // Suppress error - receiver might not be available
           console.log('Stats update sent, but receiver unavailable');
         }
       });
     } catch (error) {
       console.log('Error sending token stats update:', error);
     }
-    return newStats;
   },
 
   /**
    * Processes text based on user settings
    * @param {string} text - The text to process
-   * @returns {Promise<{text: string, replacements: Array<{original: string, replacement: string}>}>} Processed text and replacements
+   * @returns {Promise<Object>} Processed text and replacements
    */
-  processText: async function(text) {
+  async processText(text) {
     const settings = await window.StorageManager.getSettings();
     
     try {
@@ -55,51 +84,31 @@ window.TextProcessor = {
       
       // Update token statistics
       if (response.usage) {
-        const updatedStats = await this.updateTokenStats(response.usage);
-        
-        try {
-          chrome.runtime.sendMessage({
-            type: 'tokenStatsUpdated',
-            stats: updatedStats
-          }, response => {
-            if (chrome.runtime.lastError) {
-              console.log('Stats update sent, but receiver unavailable');
-            }
-          });
-        } catch (error) {
-          console.log('Error sending token stats update:', error);
-        }
+        await this.updateTokenStats(response.usage);
       }
 
-      // Extract replacements from the first tool call only
+      // Extract replacements from the tool call
       if (response.choices?.[0]?.message?.tool_calls?.[0]) {
-        // Only use the first tool call, ignore additional ones
         const toolCall = response.choices[0].message.tool_calls[0];
         const args = JSON.parse(toolCall.function.arguments);
         
         // Apply replacements to the text
-        let processedText = text;
         if (args.replacements && Array.isArray(args.replacements)) {
-          // Create a Set to track words we've already replaced to avoid duplicates
-          const replacedWords = new Set();
-          
           // Filter out duplicate replacements
+          const replacedWords = new Set();
           const uniqueReplacements = args.replacements.filter(item => {
-            const key = item.original;
-            if (replacedWords.has(key)) {
-              return false;
-            }
-            replacedWords.add(key);
+            if (replacedWords.has(item.original)) return false;
+            replacedWords.add(item.original);
             return true;
           });
           
+          // Apply replacements to the text
+          let processedText = text;
           uniqueReplacements.forEach(({ original, replacement }) => {
-            // Use regex to replace while preserving case
             const regex = new RegExp(this.escapeRegExp(original), 'g');
             processedText = processedText.replace(regex, replacement);
           });
           
-          // Return both the processed text and unique replacements array
           return {
             text: processedText,
             replacements: uniqueReplacements
@@ -107,38 +116,29 @@ window.TextProcessor = {
         }
       }
       
-      return {
-        text: text,
-        replacements: []
-      };
+      // Return unchanged text if no processing was done
+      return { text, replacements: [] };
     } catch (error) {
       console.error('Error calling OpenAI API:', error);
-      return {
-        text: text,
-        replacements: []
-      };
+      return { text, replacements: [] };
     }
   },
 
   /**
    * Makes the OpenAI API request
-   * @private
+   * @param {string} text - Text to process
+   * @param {Object} settings - User settings
+   * @returns {Promise<Object>} API response
    */
-  makeOpenAIRequest: async function(text, settings) {
+  async makeOpenAIRequest(text, settings) {
     const payload = {
-      model: "gpt-4o-mini",
+      model: this.API_CONFIG.model,
       messages: [
         {
           role: "system",
           content: [{
             type: "text",
-            text: `You will be given a sentence.
-Your task is to act as a polyglot weaver.
-This means that you will leave most of the text as it is and just replace some words with the corresponding ${settings.languageSetting} words.
-The target language is ${settings.languageSetting}.
-The target level of the ${settings.languageSetting} words used is ${settings.languageLevel}. 
-You should translate ${settings.sliderValue}% of the incoming text with ${settings.languageSetting} words so that the whole sentence is still understandable in context. 
-Select words corresponding to the ${settings.languageLevel} level of ${settings.languageSetting}. Be aware of the context, the words are in to have them with correct Grammar. First translate THe FUll sentence, then pick the word accordingly to the level and then call the function`
+            text: this.buildSystemPrompt(settings)
           }]
         },
         {
@@ -185,11 +185,11 @@ Select words corresponding to the ${settings.languageLevel} level of ${settings.
         }
       }],
       tool_choice: "required",
-      temperature: 1,
-      max_completion_tokens: 2048,
-      top_p: 1,
-      frequency_penalty: 0,
-      presence_penalty: 0
+      temperature: this.API_CONFIG.temperature,
+      max_completion_tokens: this.API_CONFIG.max_completion_tokens,
+      top_p: this.API_CONFIG.top_p,
+      frequency_penalty: this.API_CONFIG.frequency_penalty,
+      presence_penalty: this.API_CONFIG.presence_penalty
     };
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -207,18 +207,34 @@ Select words corresponding to the ${settings.languageLevel} level of ${settings.
 
     const data = await response.json();
     
-    // Log as plain text instead of an object
+    // Log for debugging purposes
     console.log('API Input Text:', text);
     console.log('API Response Data:', JSON.stringify(data, null, 2));
     
     return data;
   },
+  
+  /**
+   * Builds the system prompt based on user settings
+   * @param {Object} settings - User settings
+   * @returns {string} Formatted system prompt
+   */
+  buildSystemPrompt(settings) {
+    return `You will be given a sentence.
+Your task is to act as a polyglot weaver.
+This means that you will leave most of the text as it is and just replace some words with the corresponding ${settings.languageSetting} words.
+The target language is ${settings.languageSetting}.
+The target level of the ${settings.languageSetting} words used is ${settings.languageLevel}. 
+You should translate ${settings.sliderValue}% of the incoming text with ${settings.languageSetting} words so that the whole sentence is still understandable in context. 
+Select words corresponding to the ${settings.languageLevel} level of ${settings.languageSetting}. Be aware of the context, the words are in to have them with correct Grammar. First translate THe FUll sentence, then pick the word accordingly to the level and then call the function`;
+  },
 
   /**
    * Escapes special characters for use in RegExp
-   * @private
+   * @param {string} string - String to escape
+   * @returns {string} Escaped string
    */
-  escapeRegExp: function(string) {
+  escapeRegExp(string) {
     return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   },
 

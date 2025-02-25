@@ -1,11 +1,16 @@
+/**
+ * PostProcessor
+ * Handles text highlighting and tooltip functionality
+ */
 window.PostProcessor = {
   /**
    * Processes the original and modified text to highlight differences
    * @param {string} originalText - The original unmodified text
    * @param {string} modifiedText - The text after TextProcessor modifications
+   * @param {Array} replacements - Replacement objects with original and replacement text
    * @returns {Node[]} Array of text and span nodes
    */
-  processTextDifferences: function(originalText, modifiedText, replacements) {
+  processTextDifferences(originalText, modifiedText, replacements) {
     const nodes = [];
     let currentIndex = 0;
 
@@ -29,20 +34,7 @@ window.PostProcessor = {
 
       if (replacementIndex !== -1) {
         // Create highlighted span for the replacement
-        const span = document.createElement('span');
-        span.className = 'polyglow-weave-highlight';
-        span.textContent = replacement;
-        
-        // Store the original text as a data attribute
-        span.dataset.original = original;
-        
-        // Add title attribute as fallback for environments where JS is disabled
-        span.title = `Original: ${original}`;
-        
-        // Add mouseover event to create tooltip on demand
-        span.addEventListener('mouseover', this.showTooltip);
-        span.addEventListener('mouseout', this.hideTooltip);
-        
+        const span = this.createHighlightSpan(replacement, original);
         nodes.push(span);
         
         currentIndex = replacementIndex + replacement.length;
@@ -58,29 +50,49 @@ window.PostProcessor = {
 
     return nodes;
   },
+  
+  /**
+   * Creates a highlighted span element with event listeners
+   * @param {string} replacement - The replacement text
+   * @param {string} original - The original text
+   * @returns {HTMLSpanElement} The created span element
+   */
+  createHighlightSpan(replacement, original) {
+    const span = document.createElement('span');
+    span.className = 'polyglow-weave-highlight';
+    span.textContent = replacement;
+    
+    // Store the original text as a data attribute
+    span.dataset.original = original;
+    
+    // Add title attribute as fallback
+    span.title = `Original: ${original}`;
+    
+    // Add event listeners for tooltip
+    span.addEventListener('mouseover', this.showTooltip);
+    span.addEventListener('mouseout', this.hideTooltip);
+    
+    return span;
+  },
 
   /**
    * Shows tooltip on highlighted text using Shadow DOM
-   * 
-   * The Shadow DOM approach ensures tooltips are visible regardless of
-   * page styling by creating an isolated DOM tree that's not affected
-   * by parent element properties like overflow:hidden or z-index.
-   * @private
+   * @param {Event} event - The mouseover event
    */
-  showTooltip: function(event) {
+  showTooltip(event) {
     const span = event.currentTarget;
     const original = span.dataset.original;
     
-    // Get span position - we need this to position the tooltip
+    // Get span position for tooltip placement
     const rect = span.getBoundingClientRect();
     const x = rect.left + (rect.width / 2);
     const y = rect.top;
     
-    // Use the shadow DOM tooltip if available (preferred method)
+    // Use the shadow DOM tooltip if available
     if (window.PolyglotTooltip) {
       window.PolyglotTooltip.show(`Original: ${original}`, x, y);
     } else {
-      // Fallback to the traditional method if shadow DOM isn't available
+      // Fallback to traditional tooltip
       let tooltip = document.getElementById('polyglow-tooltip');
       if (!tooltip) {
         tooltip = document.createElement('div');
@@ -99,9 +111,9 @@ window.PostProcessor = {
 
   /**
    * Hides tooltip
-   * @private
+   * @param {Event} event - The mouseout event
    */
-  hideTooltip: function(event) {
+  hideTooltip(event) {
     if (window.PolyglotTooltip) {
       window.PolyglotTooltip.hide();
     } else {
