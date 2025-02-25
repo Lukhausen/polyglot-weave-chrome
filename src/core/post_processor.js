@@ -100,12 +100,11 @@ window.PostProcessor = {
         document.body.appendChild(tooltip);
       }
       
-      tooltip.textContent = `Original: ${original}`;
-      tooltip.style.position = 'fixed';
+      tooltip.textContent = `${original}`;
       tooltip.style.left = `${x}px`;
       tooltip.style.top = `${y}px`;
-      tooltip.style.visibility = 'visible';
-      tooltip.style.opacity = '1';
+      tooltip.classList.add('tooltip-visible');
+      tooltip.classList.remove('tooltip-hidden');
     }
   },
 
@@ -119,8 +118,8 @@ window.PostProcessor = {
     } else {
       const tooltip = document.getElementById('polyglow-tooltip');
       if (tooltip) {
-        tooltip.style.visibility = 'hidden';
-        tooltip.style.opacity = '0';
+        tooltip.classList.add('tooltip-hidden');
+        tooltip.classList.remove('tooltip-visible');
       }
     }
   },

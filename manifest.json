@@ -27,7 +27,7 @@
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "css": ["src/styles/content.css"],
+      "css": ["src/styles/content.css", "src/styles/shadow-dom.css"],
       "js": [
         "src/core/storage.js",
         "src/core/text_processor.js",
@@ -38,8 +38,7 @@
     }
   ],
   "web_accessible_resources": [{
-    "resources": ["src/core/*.js", "src/ui/*.js"],
-    "matches": ["<all_urls>"],
-    "css": ["styles/tooltip.css"]
+    "resources": ["src/core/*.js", "src/ui/*.js", "src/styles/*.css"],
+    "matches": ["<all_urls>"]
   }]
 } 

@@ -545,46 +545,52 @@ function setupTooltipContainer() {
   const tooltipHost = document.createElement('div');
   tooltipHost.id = 'polyglot-tooltip-host';
   
-  // Position it at the top layer - this ensures it's above everything
-  tooltipHost.style.position = 'fixed';
-  tooltipHost.style.top = '0';
-  tooltipHost.style.left = '0';
-  tooltipHost.style.width = '0';
-  tooltipHost.style.height = '0';
-  tooltipHost.style.zIndex = '2147483647'; // Maximum z-index value
-  tooltipHost.style.pointerEvents = 'none';
-  
-  // Attach to body instead of near the highlighted text
+  // Attach to body
   document.body.appendChild(tooltipHost);
   
-  // Create shadow root - this isolates our styles from the page
+  // Create shadow root
   const shadow = tooltipHost.attachShadow({ mode: 'open' });
   
-  // Add styles from external CSS file
-  const linkElem = document.createElement('link');
-  linkElem.setAttribute('rel', 'stylesheet');
-  linkElem.setAttribute('href', chrome.runtime.getURL('styles/tooltip.css'));
-  shadow.appendChild(linkElem);
-  
-  // Add tooltip element to shadow DOM
-  const tooltip = document.createElement('div');
-  tooltip.className = 'tooltip';
-  tooltip.id = 'polyglot-tooltip';
-  tooltip.textContent = '';
-  
-  shadow.appendChild(tooltip);
+  // Fetch the shadow DOM styles from our CSS file
+  fetch(chrome.runtime.getURL('src/styles/shadow-dom.css'))
+    .then(response => response.text())
+    .then(cssText => {
+      // Add styles to shadow DOM
+      const style = document.createElement('style');
+      style.textContent = cssText;
+      shadow.appendChild(style);
+      
+      // Add tooltip element to shadow DOM
+      const tooltip = document.createElement('div');
+      tooltip.id = 'polyglot-tooltip';
+      tooltip.textContent = '';
+      
+      shadow.appendChild(tooltip);
+      
+      console.log('Shadow DOM styles loaded from external file');
+    })
+    .catch(error => {
+      console.error('Error loading shadow DOM styles:', error);
+    });
   
   // Expose methods to the global scope for use by other components
   window.PolyglotTooltip = {
     show: function(text, x, y) {
-      tooltip.textContent = text;
-      tooltip.style.left = `${x}px`;
-      tooltip.style.top = `${y}px`;
-      tooltip.style.transform = 'translate(-50%, -100%)';
-      tooltip.style.opacity = '1';
+      const tooltip = shadow.querySelector('#polyglot-tooltip');
+      if (tooltip) {
+        tooltip.textContent = text;
+        tooltip.style.left = `${x}px`;
+        tooltip.style.top = `${y}px`;
+        tooltip.classList.add('tooltip-visible');
+        tooltip.classList.remove('tooltip-hidden');
+      }
     },
     hide: function() {
-      tooltip.style.opacity = '0';
+      const tooltip = shadow.querySelector('#polyglot-tooltip');
+      if (tooltip) {
+        tooltip.classList.add('tooltip-hidden');
+        tooltip.classList.remove('tooltip-visible');
+      }
     }
   };
   

@@ -1,0 +1,38 @@
+:host {
+  --tooltip-bg: rgba(17, 25, 40, 0.75);
+  --tooltip-border: rgba(255, 255, 255, 0.125);
+  --tooltip-radius: 8px;
+  --tooltip-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  --transition-speed: 0.3s;
+}
+
+#polyglot-tooltip {
+  position: fixed;
+  transform: translateX(-50%) translateY(-100%);
+  padding: 10px 15px;
+  background-color: var(--tooltip-bg);
+  color: white;
+  border-radius: var(--tooltip-radius);
+  font-size: 14px;
+  white-space: nowrap;
+  pointer-events: none;
+  transition: all var(--transition-speed);
+  z-index: 2147483647;
+  box-shadow: var(--tooltip-shadow);
+  border: 1px solid var(--tooltip-border);
+  backdrop-filter: blur(10px) saturate(180%);
+  -webkit-backdrop-filter: blur(10px) saturate(180%);
+  font-family: Arial, sans-serif;
+  line-height: 1.4;
+  opacity: 0;
+}
+
+#polyglot-tooltip.tooltip-visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(-110%);
+}
+
+#polyglot-tooltip.tooltip-hidden {
+  opacity: 0;
+  transform: translateX(-50%) translateY(-100%);
+} 

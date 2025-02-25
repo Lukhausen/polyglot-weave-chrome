@@ -1,32 +1,86 @@
-/* Base highlight style */
+/* ========== CSS VARIABLES ========== */
+:root {
+  --highlight-color: rgba(255, 255, 0, 0.7);
+  --highlight-intense: rgba(255, 255, 0, 1);
+  --tooltip-bg: rgba(17, 25, 40, 0.75);
+  --tooltip-border: rgba(255, 255, 255, 0.125);
+  --tooltip-radius: 8px;
+  --tooltip-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  --transition-speed: 0.3s;
+}
+
+/* ========== HIGHLIGHT STYLES ========== */
 .polyglow-weave-highlight {
   display: inline !important;
-  transition: background-color 0.3s ease !important;
-  filter: drop-shadow(0 0 4px rgba(255, 255, 0, 0.7)) !important;
-  position: relative !important;
+  transition: all var(--transition-speed) ease !important;
+  filter: drop-shadow(0 0 4px var(--highlight-color)) !important;
   cursor: help !important;
+  position: relative !important;
   z-index: 9999 !important;
 }
 
-/* Only retain fallback tooltip style for environments without JavaScript */
-#polyglow-tooltip {
+.polyglow-weave-highlight:hover {
+  filter: drop-shadow(0 0 8px var(--highlight-intense)) !important;
+  text-shadow: 0 0 2px rgba(255, 255, 0, 0.3) !important;
+}
+
+/* ========== TOOLTIP CONTAINER ========== */
+#polyglot-tooltip-host {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 0 !important;
+  height: 0 !important;
+  z-index: 2147483647 !important;
+  pointer-events: none !important;
+}
+
+/* ========== TOOLTIP STYLES ========== */
+/* Both regular and shadow DOM tooltips share these styles */
+#polyglow-tooltip, #polyglot-tooltip {
   position: fixed !important;
   transform: translateX(-50%) translateY(-100%) !important;
-  padding: 8px 12px !important;
-  background-color: #000 !important;
-  color: #fff !important;
-  border-radius: 4px !important;
+  padding: 10px 15px !important;
+  background-color: var(--tooltip-bg) !important;
+  color: white !important;
+  border-radius: var(--tooltip-radius) !important;
   font-size: 14px !important;
   white-space: nowrap !important;
   pointer-events: none !important;
-  transition: opacity 0.2s, visibility 0.2s !important;
-  z-index: 2147483647 !important; /* Maximum z-index */
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.8) !important;
-  border: 2px solid yellow !important;
+  transition: all var(--transition-speed) !important;
+  z-index: 2147483647 !important;
+  box-shadow: var(--tooltip-shadow) !important;
+  border: 1px solid var(--tooltip-border) !important;
+  backdrop-filter: blur(10px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(10px) saturate(180%) !important;
   font-family: Arial, sans-serif !important;
   line-height: 1.4 !important;
-  visibility: hidden;
-  opacity: 0;
 }
 
-/* Remove all the other tooltip-related styles that are no longer needed */ 
+/* ========== VISIBILITY STATES ========== */
+.tooltip-visible {
+  visibility: visible !important;
+  opacity: 1 !important;
+  transform: translateX(-50%) translateY(-110%) !important;
+}
+
+.tooltip-hidden {
+  visibility: hidden !important;
+  opacity: 0 !important;
+  transform: translateX(-50%) translateY(-100%) !important;
+}
+
+/* ========== UTILITY CLASSES ========== */
+[data-polyglot-placeholder="true"] {
+  display: inline !important;
+}
+
+[data-polyglot-processed="true"] {
+  /* Reserved for processed elements */
+}
+
+/* ========== SHADOW DOM STYLES ========== */
+/* These styles are extracted for the shadow DOM */
+#shadow-dom-styles {
+  display: none;
+} 
