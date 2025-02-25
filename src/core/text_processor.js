@@ -25,6 +25,20 @@ window.TextProcessor = {
     };
     
     await window.StorageManager.updateTokenStats(newStats);
+    try {
+      chrome.runtime.sendMessage({
+        type: 'tokenStatsUpdated',
+        stats: newStats
+      }, response => {
+        // Optional callback to check if message was received
+        if (chrome.runtime.lastError) {
+          // Suppress the error - receiver might not be available
+          console.log('Stats update sent, but receiver unavailable');
+        }
+      });
+    } catch (error) {
+      console.log('Error sending token stats update:', error);
+    }
     return newStats;
   },
 
@@ -43,31 +57,52 @@ window.TextProcessor = {
       if (response.usage) {
         const updatedStats = await this.updateTokenStats(response.usage);
         
-        // Dispatch event for popup
-        chrome.runtime.sendMessage({
-          type: 'tokenStatsUpdated',
-          stats: updatedStats
-        });
+        try {
+          chrome.runtime.sendMessage({
+            type: 'tokenStatsUpdated',
+            stats: updatedStats
+          }, response => {
+            if (chrome.runtime.lastError) {
+              console.log('Stats update sent, but receiver unavailable');
+            }
+          });
+        } catch (error) {
+          console.log('Error sending token stats update:', error);
+        }
       }
 
-      // Extract replacements from the tool call
+      // Extract replacements from the first tool call only
       if (response.choices?.[0]?.message?.tool_calls?.[0]) {
+        // Only use the first tool call, ignore additional ones
         const toolCall = response.choices[0].message.tool_calls[0];
         const args = JSON.parse(toolCall.function.arguments);
         
         // Apply replacements to the text
         let processedText = text;
         if (args.replacements && Array.isArray(args.replacements)) {
-          args.replacements.forEach(({ original, replacement }) => {
+          // Create a Set to track words we've already replaced to avoid duplicates
+          const replacedWords = new Set();
+          
+          // Filter out duplicate replacements
+          const uniqueReplacements = args.replacements.filter(item => {
+            const key = item.original;
+            if (replacedWords.has(key)) {
+              return false;
+            }
+            replacedWords.add(key);
+            return true;
+          });
+          
+          uniqueReplacements.forEach(({ original, replacement }) => {
             // Use regex to replace while preserving case
             const regex = new RegExp(this.escapeRegExp(original), 'g');
             processedText = processedText.replace(regex, replacement);
           });
           
-          // Return both the processed text and replacements array
+          // Return both the processed text and unique replacements array
           return {
             text: processedText,
-            replacements: args.replacements
+            replacements: uniqueReplacements
           };
         }
       }
@@ -171,7 +206,11 @@ Select words corresponding to the ${settings.languageLevel} level of ${settings.
     }
 
     const data = await response.json();
-    console.log('Raw API Response Data:', JSON.stringify(data, null, 2));
+    
+    // Log as plain text instead of an object
+    console.log('API Input Text:', text);
+    console.log('API Response Data:', JSON.stringify(data, null, 2));
+    
     return data;
   },
 

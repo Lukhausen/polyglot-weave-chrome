@@ -39,6 +39,12 @@
     .token-value {
       font-weight: bold;
     }
+    
+    .small-decimals {
+      font-size: 0.7em;
+      color: #999;
+      vertical-align: baseline;
+    }
   </style>
 </head>
 <body>
@@ -87,9 +93,13 @@
       <span class="token-value" id="totalTokens">0</span>
     </div>
     <div class="token-stat">
-      <span class="token-label">Last Updated:</span>
-      <span class="token-value" id="lastUpdated">Never</span>
+      <span class="token-label">Estimated Cost:</span>
+      <span class="token-value" id="estimatedCost">$0.00</span>
     </div>
+  </div>
+
+  <div class="action-buttons">
+    <button id="reprocessButton">Reprocess Page</button>
   </div>
 
   <script src="../core/storage.js"></script>
